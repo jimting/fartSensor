@@ -12,14 +12,14 @@ public class History
 {
     private String history_ID;
     private String result;
-    private Bitmap result_img;
+    private String resultURL;
     private String date;
 
-    History(String history_ID,String result,Bitmap result_img,String date)
+    History(String history_ID,String result,String resultURL,String date)
     {
         this.history_ID = history_ID;
         this.result = result;
-        this.result_img = result_img;
+        this.resultURL = resultURL;
         this.date = date;
     }
 
@@ -31,8 +31,8 @@ public class History
         return result;
     }
 
-    public Bitmap getResult_img() {
-        return result_img;
+    public String getResultURL() {
+        return resultURL;
     }
 
     public String getDate() {

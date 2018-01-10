@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:id="@+id/linearLayout"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -35,20 +39,19 @@
                 android:textSize="30dp" />
         </LinearLayout>
 
-        <ImageView
-            android:id="@+id/history_img"
+        <WebView
+            android:id="@+id/webview"
             android:layout_width="match_parent"
-            android:layout_height="300dp"
-            app:srcCompat="@android:drawable/ic_delete"
-            android:gravity="center_horizontal"/>
+            android:layout_height="361dp" />
+
 
         <TextView
             android:id="@+id/history_result"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
             android:text="分析結果"
-            android:textSize="40dp"
-            android:gravity="center_horizontal"/>
+            android:textSize="40dp" />
 
     </LinearLayout>
 

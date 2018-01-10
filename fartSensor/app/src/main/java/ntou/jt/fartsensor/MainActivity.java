@@ -21,6 +21,9 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -29,10 +32,14 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Reader;
+import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
 
@@ -78,6 +85,15 @@ public class MainActivity extends AppCompatActivity
             }
         }
     };
+    //用來記錄ch和LPG
+    ArrayList<String> ch = new ArrayList<>();
+    ArrayList<String> LPG = new ArrayList<>();
+    int savingStatus = 0;//0=關閉，1=開啟
+    int count = 0;
+    String welcomeText;
+    String device_id;
+    History analysisResult;
+    String historyID;
 
     Button bluetoothSetBtn;
     Button historyBtn;
@@ -128,16 +144,24 @@ public class MainActivity extends AppCompatActivity
 
         //設定使用者資料
         userData.setText(userName + "您好！");
+
         //拿到歷史紀錄
-        new Thread() {
+        Thread getInfo = new Thread() {
             public void run() {
                 try {
-                    historyList = functionList.getHistory();
+                    welcomeText = functionList.register(userID,userName);
+                    historyList = functionList.getHistory(userID);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
-        }.start();
+        };
+        getInfo.start();
+        while(getInfo.isAlive())
+        {
+
+        }
+        Toast.makeText(getApplicationContext(),welcomeText,Toast.LENGTH_SHORT).show();
 
         //設定歷史紀錄Button
         historyBtn.setOnClickListener(new View.OnClickListener(){
@@ -196,15 +220,128 @@ public class MainActivity extends AppCompatActivity
             public void handleMessage(android.os.Message msg){
                 if(msg.what == MESSAGE_READ){ //收到MESSAGE_READ 開始接收資料
                     String readMessage = null;
+                    readMessage = new String((byte[]) msg.obj);
+                    Reader inputString = new StringReader(readMessage);
+                    BufferedReader k = new BufferedReader(inputString);
                     try {
-                        readMessage = new String((byte[]) msg.obj, "UTF-8");
-                        readMessage =  readMessage.substring(0,1);
-                        //取得傳過來字串的第一個字元，其餘為雜訊
-                        _recieveData += readMessage; //拼湊每次收到的字元成字串
-                    } catch (UnsupportedEncodingException e) {
-                        e.printStackTrace();
+                        readMessage = k.readLine();
+                    } catch (IOException e) {
+                        readMessage = readMessage.substring(0,7);
                     }
-                    response.setText(_recieveData); //將收到的字串呈現在畫面上
+                    readMessage = "0" + readMessage;
+                    System.out.println(readMessage);
+                    if(readMessage.equals("0")){}
+                    else {
+                        response.setText(readMessage); //將收到的字串呈現在畫面上
+                        final String[] inputArg = readMessage.split(";");
+                        int status;
+                        try {
+                            status = Integer.parseInt(inputArg[0]);
+                        } catch (Exception e) {
+                            status = 0;
+                        }
+                        final String check = readMessage;
+                        Thread startSaving = new Thread() {
+                            public void run() {
+                                savingData(inputArg[1], inputArg[2]);
+                                count++;
+                            }
+                        };
+                        //System.out.println(inputArg[0]+","+inputArg[1]+","+inputArg[2]);
+                        if (savingStatus == 0) {
+                            if (status == 1) {
+                                System.out.println("開始收集數據");
+                                connectStatus.setText("偵測到屁啦！收集數據中！");
+                                savingStatus = 1;
+                            }
+                        } else {
+                            if (!startSaving.isAlive()) {
+                                startSaving.start();
+                            }
+                            if (count > 5) {
+                                System.out.println("結束收集");
+                                connectStatus.setText("繼續偵測下一個屁！");
+                                savingStatus = 0;
+                                count = 0;
+
+                                System.out.println(ch);
+                                System.out.println(LPG);
+
+                                final Thread pushDataToServer = new Thread() {
+                                    public void run() {
+                                        try {
+                                            historyID = functionList.newData(userID, device_id, ch, LPG);
+                                            analysisResult = functionList.selectHistory(historyID);
+                                            historyList = functionList.getHistory(userID);
+                                        } catch (IOException e) {
+
+                                        }
+                                    }
+                                };
+                                pushDataToServer.start();
+                                while (pushDataToServer.isAlive()) {
+                                }
+
+                                //再來要跳出分析結果
+                                runOnUiThread(new Runnable() {
+                                    public void run() {
+                                        AlertDialog.Builder alert = new AlertDialog.Builder(MainActivity.this);
+                                        alert.setTitle(analysisResult.getResult());
+
+                                        WebView wv = new WebView(MainActivity.this);
+                                        String url = analysisResult.getResultURL();
+                                        System.out.println(url);
+                                        //Enable JavaScript
+                                        wv.getSettings().setJavaScriptEnabled(true);
+                                        //Clear the cache
+                                        wv.clearCache(true);
+
+                                        wv.loadUrl(url);
+                                        alert.setView(wv);
+                                        alert.setNegativeButton("Close", new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int id) {
+                                                dialog.dismiss();
+                                            }
+                                        });
+                                        alert.show();
+                                        /*
+                                        AlertDialog.Builder historyBuilder = new AlertDialog.Builder(MainActivity.this);
+                                        LayoutInflater inflater = getLayoutInflater();
+                                        View view = inflater.inflate(R.layout.history_info, null, false);
+                                        TextView history_id = (TextView) view.findViewById(R.id.history_id);
+                                        TextView history_date = (TextView) view.findViewById(R.id.history_date);
+                                        TextView history_result = (TextView) view.findViewById(R.id.history_result);
+                                        WebView history_img = (WebView) view.findViewById(R.id.webview);
+                                        //設定文字部分的板塊
+                                        history_id.setText(analysisResult.gethistory_ID());
+                                        history_date.setText(analysisResult.getDate());
+                                        history_result.setText(analysisResult.getResult());
+
+                                        //設定結果圖片
+                                        history_img.getSettings().setJavaScriptEnabled(true);
+                                        history_img.loadUrl(analysisResult.getResultURL());;
+
+                                        //設定頁面
+                                        historyBuilder.setView(view);
+
+                                        //設定取消按鈕
+                                        historyBuilder.setNegativeButton("返回主頁面", new DialogInterface.OnClickListener() {
+                                            public void onClick(DialogInterface dialog, int which) {
+
+                                            }
+                                        });
+                                        //show出畫面
+                                        history_info = historyBuilder.create();
+                                        history_info.show();*/
+                                    }
+                                });
+
+                                ch.clear();
+                                LPG.clear();
+                            }
+                        }
+                    }
 
                 }
 
@@ -215,6 +352,10 @@ public class MainActivity extends AppCompatActivity
                                 + (String)(msg.obj));
                     else
                         connectStatus.setText("配對失敗QQ");
+                }
+                if(msg.what == 5)
+                {
+
                 }
             }
         };
@@ -233,6 +374,7 @@ public class MainActivity extends AppCompatActivity
                     //開啟設定藍芽畫面
                     connectStatus.setText("藍芽打開了！");
                     Toast.makeText(getApplicationContext(),"藍芽打開啦！太感動了",Toast.LENGTH_SHORT).show();
+                    return;
                 }
 
                 //再來先顯示有連接過的藍芽設備，再慢慢往下加搜尋到的設備
@@ -267,8 +409,9 @@ public class MainActivity extends AppCompatActivity
                 mBTAdapter.startDiscovery(); //開始尋找
                 Toast.makeText(getApplicationContext(), "開始搜尋囉～",
                         Toast.LENGTH_SHORT).show();
-                registerReceiver(blReceiver, new
-                        IntentFilter(BluetoothDevice.ACTION_FOUND));
+
+
+                registerReceiver(blReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND));
             }
             else{
                 Toast.makeText(getApplicationContext(), "你還沒開藍芽啊！",
@@ -332,6 +475,17 @@ public class MainActivity extends AppCompatActivity
                                 //開啟新執行緒顯示連接裝置名稱
                                 mHandler.obtainMessage(CONNECTING_STATUS, 1, -1, name)
                                         .sendToTarget();
+                                final String address = device.getAddress();
+                                Thread addDevice = new Thread() {
+                                    public void run() {
+                                        try {
+                                            device_id = functionList.addEquip(userID,address);
+                                        } catch (IOException e) {
+                                            e.printStackTrace();
+                                        }
+                                    }
+                                };
+                                addDevice.start();
                             }
                         }
                     }.start();
@@ -410,6 +564,27 @@ public class MainActivity extends AppCompatActivity
     private AdapterView.OnItemClickListener historyClickListener = new
             AdapterView.OnItemClickListener() {
                 public void onItemClick(AdapterView<?> av, View v, int arg2, long arg3) {
+                    AlertDialog.Builder alert = new AlertDialog.Builder(MainActivity.this);
+                    alert.setTitle(historyList[arg2].getResult());
+
+                    WebView wv = new WebView(MainActivity.this);
+                    String url = historyList[arg2].getResultURL();
+                    System.out.println(url);
+                    //Enable JavaScript
+                    wv.getSettings().setJavaScriptEnabled(true);
+                    //Clear the cache
+                    wv.clearCache(true);
+
+                    wv.loadUrl(url);
+                    alert.setView(wv);
+                    alert.setNegativeButton("Close", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int id) {
+                            dialog.dismiss();
+                        }
+                    });
+                    alert.show();
+                    /*
                     //arg2是表示第幾個項目被點擊了~
                     AlertDialog.Builder historyBuilder = new AlertDialog.Builder(MainActivity.this);
                     LayoutInflater inflater = getLayoutInflater();
@@ -417,14 +592,17 @@ public class MainActivity extends AppCompatActivity
                     TextView history_id = (TextView) view.findViewById(R.id.history_id);
                     TextView history_date = (TextView) view.findViewById(R.id.history_date);
                     TextView history_result = (TextView) view.findViewById(R.id.history_result);
-                    ImageView history_img = (ImageView) view.findViewById(R.id.history_img);
+                    WebView history_img = (WebView) view.findViewById(R.id.webview);
                     //設定文字部分的板塊
                     history_id.setText(historyList[arg2].gethistory_ID());
                     history_date.setText(historyList[arg2].getDate());
                     history_result.setText(historyList[arg2].getResult());
 
                     //設定結果圖片
-                    history_img.setImageBitmap(historyList[arg2].getResult_img());
+                    //設定結果圖片
+                    System.out.println(historyList[arg2].getResultURL());
+                    history_img.getSettings().setJavaScriptEnabled(true);
+                    history_img.loadUrl(historyList[arg2].getResultURL());
 
                     //設定頁面
                     historyBuilder.setView(view);
@@ -439,7 +617,17 @@ public class MainActivity extends AppCompatActivity
                     });
                     //show出畫面
                     history_info = historyBuilder.create();
-                    history_info.show();
+                    history_info.show();*/
                 }
             };
+    private void savingData(String tmpCh,String tmpLPG)
+    {
+        ch.add(tmpCh);
+        LPG.add(tmpLPG);
+    }
+    @Override
+    protected void onPause() {
+        super.onPause();
+        this.unregisterReceiver(this.blReceiver);
+    }
 }
