@@ -53,6 +53,6 @@ finalProject.ino
 
 ----------
 
-1/12Demo、1/11結案囉～
+1/11結案囉～
 
 Programming by JT & 桓慶
