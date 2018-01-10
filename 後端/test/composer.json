@@ -1,0 +1,17 @@
+{
+  "name": "jonahgeorge/chartkick",
+  "description": "Create beautiful JavaScript charts with one line of PHP",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Jonah George",
+      "email": "jonah.george@me.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "JonahGeorge\\": "src/"
+    }
+  }
+}
