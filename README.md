@@ -35,9 +35,13 @@ Android端
 
 7.DB結構:
 			1.user	 = 	user_id(Varchar)
+			
 			2.device = 	device_id(int/ai)	|user_id(Varchar)	|device_mac(Varchar)
-			3.history=	history_id(int/ai)	|user_id(Varchar)	|device_id(int)		|result(Varchar)	|resultURL(Varchar)	|date(Datetime)
-
+			
+			3.history=	history_id(int/ai)	|user_id(Varchar)	|device_id(int)		|result(Varchar)
+			
+					|resultURL(Varchar)	|date(Datetime)
+					
 ----------
 
 硬體端
